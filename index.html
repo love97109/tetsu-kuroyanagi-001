@@ -113,6 +113,10 @@
             text-align: left;
         }
 
+        .label-title.is-red-text {
+            color: #dc2626 !important;
+        }
+
         /* Model style (Right side) */
         .label-model {
             font-size: var(--model-font-size);
@@ -188,6 +192,10 @@
             .label-title, .label-model {
                 color: #000000 !important;
             }
+
+            .label-title.is-red-text {
+                color: #dc2626 !important;
+            }
         }
     </style>
 </head>
@@ -245,14 +253,14 @@
 
                         <div>
                             <label for="inputTitle" class="block text-xs font-semibold text-slate-600 mb-1">左側：產品名稱 / 主標題</label>
-                            <input type="text" id="inputTitle" value="▉ 28cm千格紋輕量炒鍋" placeholder="例如：▉ 28cm千格紋輕量炒鍋" 
+                            <input type="text" id="inputTitle" value="⛔湯勺為不沾塗層，請使用海綿清洗 !" placeholder="例如：⛔湯勺為不沾塗層，請使用海綿清洗 !" 
                                 oninput="updateLabels()" 
                                 class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
                         </div>
 
                         <div>
                             <label for="inputModel" class="block text-xs font-semibold text-slate-600 mb-1">右側：產品型號 / 副標題</label>
-                            <input type="text" id="inputModel" value="FN-511RRT" placeholder="例如：FN-511RRT" 
+                            <input type="text" id="inputModel" value="" placeholder="例如：FN-511RRT (可留空)" 
                                 oninput="updateLabels()" 
                                 class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
                         </div>
@@ -352,10 +360,14 @@
         const FIXED_TITLE_COL = 'G';
         const FIXED_MODEL_COL = 'E';
 
-        // 預設品項清單 (離線/備用)
+        // 固定出現的警語/提示標籤品項 (設定紅字標記)
+        const FIXED_NOTICE_ITEM = { title: '⛔湯勺為不沾塗層，請使用海綿清洗 !', model: '', isRed: true };
+
+        // 預設品項清單 (離線/備用) - 警語放置於最後一個選項
         let PRESET_PRODUCTS = [
             { title: '▉ 28cm千格紋輕量炒鍋', model: 'FN-511RRT' },
-            { title: '▉ 33cm千格紋輕量炒鍋', model: 'FN-513RRT' }
+            { title: '▉ 33cm千格紋輕量炒鍋', model: 'FN-513RRT' },
+            FIXED_NOTICE_ITEM
         ];
 
         // 轉換欄位字母為 0-based 索引 (A->0, E->4, G->6)
@@ -367,49 +379,6 @@
                 sum = sum * 26 + (colStr.charCodeAt(i) - 64);
             }
             return sum - 1;
-        }
-
-        // 使用 JSONP 載入以繞過本機 (file://) 的 CORS 跨域限制
-        function fetchSheetJSONP(sheetId, gid) {
-            return new Promise((resolve, reject) => {
-                const callbackName = 'gviz_cb_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-                const script = document.createElement('script');
-                
-                const timer = setTimeout(() => {
-                    cleanup();
-                    reject(new Error('連線逾時！請確認 Google 試算表共用權限已設定為「知道連結的人皆可檢視」'));
-                }, 8000);
-
-                function cleanup() {
-                    delete window[callbackName];
-                    if (script.parentNode) script.parentNode.removeChild(script);
-                    if (timer) clearTimeout(timer);
-                }
-
-                window[callbackName] = function(data) {
-                    cleanup();
-                    if (data && data.status === 'error') {
-                        reject(new Error('試算表讀取錯誤，請確認共用權限與頁面識別碼 (gid)'));
-                    } else if (data && data.table) {
-                        resolve(data.table);
-                    } else {
-                        reject(new Error('資料格式解析失敗'));
-                    }
-                };
-
-                let url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=responseHandler:${callbackName}&headers=0`;
-                if (gid) url += `&gid=${gid}`;
-                // 加入時間戳記防快取 (Cache Buster)
-                url += `&_=${Date.now()}`;
-
-                script.src = url;
-                script.onerror = function() {
-                    cleanup();
-                    reject(new Error('無法存取雲端試算表，請檢查網路連線或網址格式'));
-                };
-
-                document.body.appendChild(script);
-            });
         }
 
         // Initialize grid on DOM load
@@ -475,10 +444,22 @@
             document.documentElement.style.setProperty('--offset-y', `${offsetY}mm`);
             document.documentElement.style.setProperty('--offset-x', `${offsetX}mm`);
 
+            // 判斷是否為警告提示文字（使用標記或關鍵字判斷）
+            const selectedIdx = parseInt(document.getElementById('productSelect').value, 10);
+            const selectedProd = PRESET_PRODUCTS[selectedIdx];
+            const isRedText = (selectedProd && selectedProd.isRed) || titleVal.includes('湯勺為不沾塗層');
+
             for (let i = 0; i < TOTAL_LABELS; i++) {
                 const titleEl = document.getElementById(`title-${i}`);
                 const modelEl = document.getElementById(`model-${i}`);
-                if (titleEl) titleEl.innerText = titleVal;
+                if (titleEl) {
+                    titleEl.innerText = titleVal;
+                    if (isRedText) {
+                        titleEl.classList.add('is-red-text');
+                    } else {
+                        titleEl.classList.remove('is-red-text');
+                    }
+                }
                 if (modelEl) modelEl.innerText = modelVal;
             }
         }
@@ -515,8 +496,8 @@
                 document.getElementById('inputTitle').value = PRESET_PRODUCTS[0].title || '';
                 document.getElementById('inputModel').value = PRESET_PRODUCTS[0].model || '';
             } else {
-                document.getElementById('inputTitle').value = '▉ 28cm千格紋輕量炒鍋';
-                document.getElementById('inputModel').value = 'FN-511RRT';
+                document.getElementById('inputTitle').value = FIXED_NOTICE_ITEM.title;
+                document.getElementById('inputModel').value = FIXED_NOTICE_ITEM.model;
             }
             document.getElementById('titleFontSize').value = 12.5;
             document.getElementById('modelFontSize').value = 9.5;
@@ -545,6 +526,49 @@
                 opt.value = idx;
                 opt.innerText = prod.model ? `${prod.title} (型號:${prod.model})` : prod.title;
                 select.appendChild(opt);
+            });
+        }
+
+        // 使用 JSONP 載入以繞過本機 (file://) 的 CORS 跨域限制
+        function fetchSheetJSONP(sheetId, gid) {
+            return new Promise((resolve, reject) => {
+                const callbackName = 'gviz_cb_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+                const script = document.createElement('script');
+                
+                const timer = setTimeout(() => {
+                    cleanup();
+                    reject(new Error('連線逾時！請確認 Google 試算表共用權限已設定為「知道連結的人皆可檢視」'));
+                }, 8000);
+
+                function cleanup() {
+                    delete window[callbackName];
+                    if (script.parentNode) script.parentNode.removeChild(script);
+                    if (timer) clearTimeout(timer);
+                }
+
+                window[callbackName] = function(data) {
+                    cleanup();
+                    if (data && data.status === 'error') {
+                        reject(new Error('試算表讀取錯誤，請確認共用權限與頁面識別碼 (gid)'));
+                    } else if (data && data.table) {
+                        resolve(data.table);
+                    } else {
+                        reject(new Error('資料格式解析失敗'));
+                    }
+                };
+
+                let url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=responseHandler:${callbackName}&headers=0`;
+                if (gid) url += `&gid=${gid}`;
+                // 加入時間戳記防快取 (Cache Buster)
+                url += `&_=${Date.now()}`;
+
+                script.src = url;
+                script.onerror = function() {
+                    cleanup();
+                    reject(new Error('無法存取雲端試算表，請檢查網路連線或網址格式'));
+                };
+
+                document.body.appendChild(script);
             });
         }
 
@@ -609,12 +633,14 @@
                     if (!title && !model) continue;
                     if (title === '細目' || model === '型號' || title === '產品名稱') continue;
 
+                    // 避免重複加入固定警語品項
+                    if (title === FIXED_NOTICE_ITEM.title) continue;
+
                     newProducts.push({ title: title || '未命名商品', model });
                 }
 
-                if (newProducts.length === 0) {
-                    throw new Error(`未找到有效商品資料 (G欄細目與E欄型號)`);
-                }
+                // 將固定警語品項放在清單的最後一個選項
+                newProducts.push(FIXED_NOTICE_ITEM);
 
                 PRESET_PRODUCTS = newProducts;
                 
@@ -623,7 +649,7 @@
                 
                 const statusEl = document.getElementById('sheetStatusText');
                 if (statusEl) {
-                    statusEl.innerText = `已成功載入雲端試算表 (共 ${newProducts.length} 筆資料)`;
+                    statusEl.innerText = `已成功載入雲端試算表 (共 ${newProducts.length} 筆資料，含固定常用品項)`;
                     statusEl.className = "text-[11px] text-emerald-600 font-medium mt-1 block";
                 }
 
