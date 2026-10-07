@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
     <title>黑柳徹包裝標籤貼紙 (029) L1290 (2x24 欄位)</title>
     <!-- Tailwind CSS for UI controls -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -140,21 +140,25 @@
         }
 
         @media print {
+            /* 1. 明確宣告紙張為 A4 且邊界為 0 */
             @page {
                 size: A4 portrait;
-                margin: 0;
+                margin: 0mm !important;
             }
 
+            /* 2. 強制 html 與 body 為物理 A4 尺寸，並避免手機瀏覽器縮放視區 */
             html, body {
                 background: #ffffff !important;
                 padding: 0 !important;
                 margin: 0 !important;
                 width: 210mm !important;
                 height: 297mm !important;
-                overflow: hidden !important;
+                min-width: 210mm !important; /* 核心修正：防止手機瀏覽器以螢幕寬度計算列印頁面 */
+                min-height: 297mm !important;
+                overflow: visible !important;
             }
 
-            /* Hide all interactive UI elements */
+            /* 隱藏所有不列印的 UI */
             .no-print {
                 display: none !important;
             }
@@ -163,9 +167,10 @@
                 padding: 0 !important;
                 margin: 0 !important;
                 max-width: none !important;
+                width: 210mm !important;
             }
 
-            /* Ensure sheet has zero shadow and fixed dimension */
+            /* 3. 重設 A4 貼紙容器，移除 CSS scale 並強制 1:1 實體尺寸 */
             .a4-sheet {
                 box-shadow: none !important;
                 margin: 0 !important;
@@ -173,22 +178,32 @@
                 padding-bottom: 4.5mm !important;
                 padding-left: 14mm !important;
                 padding-right: 14mm !important;
-                transform: scale(1) !important;
+                width: 210mm !important;
+                height: 297mm !important;
+                transform: none !important; /* 清除螢幕預覽時的 preview-scale 縮放效果 */
                 page-break-after: avoid !important;
                 break-after: avoid !important;
+                page-break-inside: avoid !important;
             }
 
-            /* Hide cell borders and badges in print output */
+            /* 4. 確保表格不因螢幕彈性佈局而被擠壓 */
+            .label-grid {
+                width: 182mm !important;
+                height: 288mm !important;
+            }
+
+            /* 隱藏儲存格邊框與序號 */
             .label-cell {
                 border: none !important;
                 background: transparent !important;
+                box-sizing: border-box !important;
             }
 
             .cell-badge {
                 display: none !important;
             }
 
-            /* Ensure clean dark text for printing */
+            /* 確保列印文字顏色清晰 */
             .label-title, .label-model {
                 color: #000000 !important;
             }
